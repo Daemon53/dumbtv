@@ -71,9 +71,11 @@ for p in $(list_of "$(fos never-disable.txt)" | awk '{print $1}'); do
 done
 
 step "screensaver"
-if [[ $(dev1 settings get secure screensaver_components) == "$AOSP_DREAM" ]]; then
+# Either Android's own screensaver (debloat.sh's fallback) or dumbtv home's goes back to Amazon's.
+current=$(dev1 settings get secure screensaver_components)
+if [[ $current == "$AOSP_DREAM" || $current == tv.dumbtv.home/* ]]; then
   want=$(restore_value secure screensaver_components "$(dev1 settings get secure screensaver_default_component)")
-  if [[ -n $want && $want != null && $want != "$AOSP_DREAM" ]]; then
+  if [[ -n $want && $want != null && $want != "$AOSP_DREAM" && $want != tv.dumbtv.home/* ]]; then
     acmd settings put secure screensaver_components "$want" >/dev/null
     printf '  %-46s %s\n' screensaver_components "$want"
   fi

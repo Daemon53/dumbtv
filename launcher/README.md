@@ -122,6 +122,59 @@ Settings button where it has one, still work. A PIN on dumbtv's buttons would le
 those doors open just the same. Fire OS has its own Parental Controls
 under Settings › Preferences, which use your Amazon PIN; dumbtv leaves them alone.
 
+## Weather, alerts, quotes, countdown and night mode
+
+**Weather and alerts** come from a separate helper app, `weather/` (tv.dumbtv.weather),
+so this launcher keeps no internet permission. The helper answers this launcher only,
+fetches the forecast from api.open-meteo.com every 30 minutes and National Weather
+Service alerts from api.weather.gov every 5, and sends each only the place. Build and
+install it next to the launcher, then set the place in `home.conf`:
+
+```sh
+./weather/build.sh            # weather/build/dumbtv-weather.apk, signed with the launcher's key
+adb install -r weather/build/dumbtv-weather.apk
+```
+
+```
+weather.lat=40.7128
+weather.lon=-74.0060
+# fahrenheit or celsius
+weather.units=fahrenheit
+```
+
+An active alert shows as a banner under the clock, red for warnings and amber for watches
+and advisories, on the home screen and the screensaver. It is not shown over other apps.
+
+**Quotes** (Options › Quotes): one line under the clock, changed every hour, 4 hours or
+day. The list is `res/raw/quotes.txt` unless a `quotes.txt` sits next to `home.conf`;
+one quote per line, optionally followed by ` — ` and who said it.
+
+**Christmas countdown** (Options): "N days until Christmas" under the date from
+November 1 to Christmas Day.
+
+**Night mode** (Options): from the chosen hour until 6 AM the background is dimmed, and
+on Background › Christmas the fire burns low.
+
+**Background › Video file** plays `background.mp4` from the app's folder, muted and
+looping; Image dim darkens it. The player is released whenever an app opens.
+
+## Screensaver
+
+dumbtv home includes a screensaver to use in place of Amazon's: the home screen's
+background, a large clock, the date, the countdown, the weather, a quote and any alert,
+drifting slightly every few minutes. Fire OS's settings only offer Amazon's, so choose
+it over adb:
+
+```sh
+adb shell settings put secure screensaver_components tv.dumbtv.home/tv.dumbtv.home.Screensaver
+```
+
+and to go back (`scripts/restore.sh` does this too):
+
+```sh
+adb shell settings put secure screensaver_components com.amazon.ftv.screensaver/.app.services.ScreensaverService
+```
+
 ## The settings file
 
 Everything lives in one text file on the TV:

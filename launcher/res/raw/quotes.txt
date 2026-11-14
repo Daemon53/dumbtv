@@ -1,0 +1,30 @@
+# The quotes dumbtv home shows under the clock, one per line: the quote, then " — " and who said
+# it (leave that part off for none). Lines starting with # are skipped.
+# To use your own, put a quotes.txt like this one in the app's folder (see Options for the path);
+# it replaces this list.
+Home is wherever we're all together.
+The best gifts in this house don't come wrapped.
+Be the reason someone smiles today.
+We don't have to be perfect to be a family. We just have to show up for each other.
+Small kindnesses, done every day, build a big love.
+Hard days are easier when we face them together.
+Say thank you often. Mean it every time.
+Leave every room a little better than you found it.
+You are loved more than you know.
+Listen first. Then listen some more.
+Brave doesn't mean not scared. It means doing it anyway.
+Our door is always open, and so are our hearts.
+A good laugh around the table is worth more than a perfect meal.
+Try again tomorrow. Tomorrow is always a fresh start.
+Be kind to your brothers and sisters. They are your oldest friends.
+Every one of us makes this home what it is.
+Gratitude turns what we have into enough.
+Work hard, be kind, and help where you can.
+Forgive quickly. Hug often.
+The memories we make tonight are the stories we'll tell for years.
+It's not about having time. It's about making time for each other.
+Where we love is home, home that our feet may leave, but not our hearts. — Oliver Wendell Holmes Sr.
+Grown-ups and kids alike: put the phones down and look up.
+Every season is better with the people you love.
+The lights on the tree are pretty. The people around it are the best part.
+Peace on earth starts with peace at home.

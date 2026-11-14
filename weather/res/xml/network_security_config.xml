@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- HTTPS only. Open-Meteo and api.weather.gov chain to Let's Encrypt's 2025 roots, which Fire OS 6
+     (Android 7.1) predates, so those roots are trusted here next to the system store:
+     raw/isrg_root_ye.pem is letsencrypt.org/certs/gen-y/root-ye.pem, SHA-256
+     E1:4F:FC:AD:5B:00:25:73:10:06:CA:A4:3A:12:1A:22:D8:E9:70:0F:4F:B9:CF:85:2F:02:A7:08:AA:5D:56:66
+     raw/isrg_root_yr.pem is letsencrypt.org/certs/gen-y/root-yr.pem, SHA-256
+     E5:7B:7E:6F:15:0C:41:91:02:E8:D5:C0:55:72:9F:F9:67:B9:D1:A8:29:BF:00:CE:C8:9C:A6:04:EB:F4:A8:6F -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="@raw/isrg_root_ye" />
+            <certificates src="@raw/isrg_root_yr" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

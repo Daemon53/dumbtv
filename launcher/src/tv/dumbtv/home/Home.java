@@ -18,10 +18,12 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.provider.Settings;
 import android.text.SpannableString;
 import android.text.Spanned;
 import android.text.format.DateFormat;
+import android.text.style.ForegroundColorSpan;
 import android.text.style.RelativeSizeSpan;
 import android.view.Gravity;
 import android.view.KeyEvent;
@@ -55,6 +57,8 @@ public final class Home extends Activity {
     private static final int MATCH = ViewGroup.LayoutParams.MATCH_PARENT;
     private static final int WRAP = ViewGroup.LayoutParams.WRAP_CONTENT;
     private static final String APPSTORE = "com.amazon.venezia";
+    /** How often the helper is asked again once it has answered; it refreshes every 30 min. */
+    private static final long WEATHER_MS = 5 * 60 * 1000L;
 
     private final Handler ui = new Handler(Looper.getMainLooper());
     private final ExecutorService io = Executors.newSingleThreadExecutor();
@@ -68,6 +72,17 @@ public final class Home extends Activity {
     private String lastAppId;
     private String lastInputId;
     private FrameLayout root;
+    private LinearLayout column;
+    private Christmas scene;
+    private LinearLayout weather;
+    private TextView weatherNow, weatherSky, weatherRange, weatherLater;
+    private long weatherAsked;
+    private boolean weatherShown;
+    private TextView quote, countdown, alert;
+    private VideoBackground video;
+    private View nightShade;
+    private List<String[]> quotes = new ArrayList<>();
+    private long quoteSlot = Long.MIN_VALUE;
     private ImageView wall;
     private View shade;
     private View tint;
@@ -239,6 +254,17 @@ public final class Home extends Activity {
         f.addAction(Intent.ACTION_TIMEZONE_CHANGED);
         registerReceiver(time, f);
         tick();
+        refreshWeather(true);
+        File own = cfg.own(Quotes.FILE);
+        io.execute(() -> {
+            List<String[]> list = Quotes.load(this, own);
+            ui.post(() -> {
+                if (isDestroyed()) return;
+                quotes = list;
+                quoteSlot = Long.MIN_VALUE;
+                showQuote();
+            });
+        });
     }
 
     @Override
@@ -250,6 +276,8 @@ public final class Home extends Activity {
     protected void onPause() {
         super.onPause();
         resumed = false;
+        scene.stop();
+        video.stop();
         stopColorAnimation();
         targetColor = 0;
         unregisterReceiver(time);
@@ -426,10 +454,22 @@ public final class Home extends Activity {
         wall = new ImageView(this);
         wall.setScaleType(ImageView.ScaleType.CENTER_CROP);
         root.addView(wall, new FrameLayout.LayoutParams(MATCH, MATCH));
+        // The video sits under the shade that fades it, and the Christmas decorations go on top.
+        video = new VideoBackground(this);
+        // Posted: a failure can be reported from inside background() itself.
+        video.onFailure(() -> ui.post(this::background));
+        root.addView(video, new FrameLayout.LayoutParams(MATCH, MATCH));
         shade = new View(this);
         root.addView(shade, new FrameLayout.LayoutParams(MATCH, MATCH));
+        scene = new Christmas(this);
+        scene.setVisibility(View.GONE);
+        root.addView(scene, new FrameLayout.LayoutParams(MATCH, MATCH));
         tint = new View(this);
         root.addView(tint, new FrameLayout.LayoutParams(MATCH, MATCH));
+        nightShade = new View(this);
+        nightShade.setBackgroundColor(0x80000000);
+        nightShade.setVisibility(View.GONE);
+        root.addView(nightShade, new FrameLayout.LayoutParams(MATCH, MATCH));
 
         ScrollView scroll = new ScrollView(this) {
             /** Scrolls in whole rows: the focused row shows complete, and a row starts at the top edge. */
@@ -469,7 +509,7 @@ public final class Home extends Activity {
         scroll.setClipChildren(false);
         root.addView(scroll, new FrameLayout.LayoutParams(MATCH, MATCH));
 
-        LinearLayout column = new LinearLayout(this) {
+        column = new LinearLayout(this) {
             @Override
             public View focusSearch(View focused, int direction) {
                 if (direction == View.FOCUS_DOWN && chips.contains(focused)) {
@@ -567,16 +607,35 @@ public final class Home extends Activity {
         date.setPadding(dp(2), dp(8), 0, 0);
         when.addView(clock);
         when.addView(date);
+        countdown = Ui.text(this, 15, 0xFFE8C46A, Ui.MEDIUM);
+        countdown.setPadding(dp(2), dp(6), 0, 0);
+        countdown.setVisibility(View.GONE);
+        when.addView(countdown);
         meter = new Meter(this);
         meter.setVisibility(View.GONE);
         LinearLayout.LayoutParams under = new LinearLayout.LayoutParams(WRAP, WRAP);
         under.topMargin = dp(12);
         under.leftMargin = dp(2);
         when.addView(meter, under);
-        head.addView(when, new LinearLayout.LayoutParams(0, WRAP, 1f));
+        head.addView(when, new LinearLayout.LayoutParams(WRAP, WRAP));
+        LinearLayout.LayoutParams beside = new LinearLayout.LayoutParams(WRAP, WRAP);
+        beside.leftMargin = dp(56);
+        head.addView(buildWeather(), beside);
+        head.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1f));
         head.addView(chip("Options", v -> startActivity(new Intent(this, Options.class))));
         head.addView(chip("Settings", v -> openSettings()));
         column.addView(head, new LinearLayout.LayoutParams(MATCH, WRAP));
+        alert = Ui.text(this, 18, 0xFFFFFFFF, Ui.MEDIUM);
+        alert.setPadding(dp(18), dp(8), dp(18), dp(8));
+        alert.setVisibility(View.GONE);
+        LinearLayout.LayoutParams banner = new LinearLayout.LayoutParams(WRAP, WRAP);
+        banner.setMargins(dp(56), dp(4), dp(56), dp(8));
+        column.addView(alert, banner);
+        quote = Ui.text(this, 19, Ui.TEXT, Ui.LIGHT);
+        quote.setPadding(dp(58), dp(2), dp(56), dp(4));
+        quote.setMaxLines(2);
+        quote.setVisibility(View.GONE);
+        column.addView(quote, new LinearLayout.LayoutParams(MATCH, WRAP));
 
         apps = new Row(Catalog.APPS, "Apps", column);
         inputs = new Row(Catalog.INPUTS, "Inputs", column);
@@ -959,6 +1018,94 @@ public final class Home extends Activity {
         }
         // hourly and time-of-day rotations change while the screen stays open; a no-op otherwise
         background();
+        refreshWeather(false);
+        showQuote();
+        String days = "on".equals(cfg.get(Config.COUNTDOWN)) ? Countdown.line(java.util.Calendar.getInstance()) : null;
+        countdown.setText(days);
+        countdown.setVisibility(days == null ? View.GONE : View.VISIBLE);
+        boolean night = cfg.night(java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY));
+        nightShade.setVisibility(night ? View.VISIBLE : View.GONE);
+        scene.setNight(night);
+    }
+
+    /** Puts up this period's quote; does nothing while the period lasts. */
+    private void showQuote() {
+        long slot = Quotes.slot(cfg.get(Config.QUOTES), System.currentTimeMillis());
+        if (slot == quoteSlot) return;
+        quoteSlot = slot;
+        String[] q = Quotes.pick(quotes, slot);
+        if (q == null) {
+            quote.setVisibility(View.GONE);
+            return;
+        }
+        SpannableString text = new SpannableString("“" + q[0] + "”" + (q[1].isEmpty() ? "" : "   — " + q[1]));
+        int by = q[0].length() + 2;
+        if (text.length() > by) {
+            text.setSpan(new RelativeSizeSpan(0.75f), by, text.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            text.setSpan(new ForegroundColorSpan(Ui.MUTED), by, text.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        quote.setText(text);
+        quote.setVisibility(View.VISIBLE);
+    }
+
+    /** Current temperature large, then the sky, today's high and low, and noon and 6 PM. */
+    private View buildWeather() {
+        weather = new LinearLayout(this);
+        weather.setOrientation(LinearLayout.HORIZONTAL);
+        weather.setVisibility(View.GONE);
+        weatherNow = Ui.text(this, 52, Ui.TEXT, Ui.LIGHT);
+        weather.addView(weatherNow);
+        LinearLayout lines = new LinearLayout(this);
+        lines.setOrientation(LinearLayout.VERTICAL);
+        lines.setPadding(dp(16), dp(4), 0, 0);
+        weatherSky = Ui.text(this, 15, Ui.TEXT, Ui.MEDIUM);
+        weatherRange = Ui.text(this, 15, Ui.MUTED, Ui.MEDIUM);
+        weatherLater = Ui.text(this, 15, Ui.MUTED, Ui.MEDIUM);
+        for (TextView v : new TextView[] {weatherSky, weatherRange, weatherLater}) {
+            v.setPadding(0, 0, 0, dp(5));
+            lines.addView(v);
+        }
+        weather.addView(lines);
+        return weather;
+    }
+
+    /**
+     * Asks the weather helper for today's forecast, at most every {@link #WEATHER_MS} once it has
+     * answered and every minute until then; {@code now} asks regardless.
+     */
+    private void refreshWeather(boolean now) {
+        Bundle ask = Weather.request(cfg);
+        if (ask == null) {
+            weatherShown = false;
+            weather.setVisibility(View.GONE);
+            return;
+        }
+        long t = SystemClock.uptimeMillis();
+        if (!now && weatherShown && t - weatherAsked < WEATHER_MS) return;
+        weatherAsked = t;
+        io.execute(() -> {
+            Weather w = Weather.read(this, ask);
+            ui.post(() -> showWeather(w));
+        });
+    }
+
+    private void showWeather(Weather w) {
+        if (isDestroyed()) return;
+        weatherShown = w != null;
+        String warning = w == null ? null : w.alertLine(this);
+        alert.setText(warning);
+        alert.setBackground(warning == null ? null : Ui.round(w.urgent(0) ? 0xE6C62828 : 0xE6B26A00, dp(10)));
+        alert.setVisibility(warning == null ? View.GONE : View.VISIBLE);
+        if (w == null) {
+            weather.setVisibility(View.GONE);
+            return;
+        }
+        weatherNow.setText(Weather.degrees(w.now));
+        String sky = Weather.condition(w.code);
+        weatherSky.setText(sky.isEmpty() ? "Now" : sky);
+        weatherRange.setText("High " + Weather.degrees(w.hi) + "   Low " + Weather.degrees(w.lo));
+        weatherLater.setText("Noon " + Weather.degrees(w.noon) + "   6 PM " + Weather.degrees(w.evening));
+        weather.setVisibility(View.VISIBLE);
     }
 
     private void background() {
@@ -966,6 +1113,21 @@ public final class Home extends Activity {
         boolean image = "image".equals(mode) || "adaptive-tint".equals(mode);
         File file = image ? cfg.wallpaper() : null;
         tintWallpaper = "adaptive-tint".equals(mode) && file != null;
+        boolean christmas = "christmas".equals(mode);
+        scene.setVisibility(christmas ? View.VISIBLE : View.GONE);
+        if (christmas && resumed) scene.start();
+        else scene.stop();
+        // Christmas uses the video too when there is one: the real fire, faded, under the decorations.
+        File movie = "video".equals(mode) || christmas ? cfg.own(Config.VIDEO) : null;
+        if (movie != null && video.broken(movie)) movie = null;
+        if (movie != null && resumed) video.play(movie);
+        else video.stop();
+        scene.setOverVideo(christmas && movie != null);
+        // The string of lights hangs over the top edge; the clock moves down clear of it.
+        int top = dp(christmas ? 64 : 40);
+        if (column.getPaddingTop() != top) {
+            column.setPadding(column.getPaddingLeft(), top, column.getPaddingRight(), column.getPaddingBottom());
+        }
         if ("adaptive".equals(mode)) {
             if (!mode.equals(backgroundMode)) {
                 stopColorAnimation();
@@ -994,7 +1156,8 @@ public final class Home extends Activity {
             root.setBackgroundColor(cfg.background());
         }
         int dim = Integer.parseInt(cfg.get(Config.DIM));
-        shade.setBackgroundColor(file == null ? Color.TRANSPARENT : Color.argb(dim * 255 / 100, 0, 0, 0));
+        if (christmas && movie != null) shade.setBackgroundColor(Christmas.VIDEO_FADE);
+        else shade.setBackgroundColor(file == null && movie == null ? Color.TRANSPARENT : Color.argb(dim * 255 / 100, 0, 0, 0));
         String key = file == null ? null : file.getPath() + ":" + file.lastModified();
         if (key == null ? wallKey == null : key.equals(wallKey)) return;
         wallKey = key;

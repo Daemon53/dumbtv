@@ -85,8 +85,9 @@ final class Config {
             new String[] {"auto", "tv", "home"},
             new String[] {"Automatic", "The TV's app", "dumbtv home"});
     static final Choice BACKGROUND = new Choice("background", "Background", "black",
-            new String[] {"black", "graphite", "midnight", "image", "adaptive", "adaptive-tint"},
-            new String[] {"Black", "Graphite", "Midnight", "Image file", "Adaptive solid", "Adaptive wallpaper tint"});
+            new String[] {"black", "graphite", "midnight", "image", "adaptive", "adaptive-tint", "christmas", "video"},
+            new String[] {"Black", "Graphite", "Midnight", "Image file", "Adaptive solid", "Adaptive wallpaper tint",
+                    "Christmas", "Video file"});
     static final Choice DIM = new Choice("dim", "Image dim", "40",
             new String[] {"0", "20", "40", "60", "80"},
             new String[] {"0%", "20%", "40%", "60%", "80%"});
@@ -105,7 +106,26 @@ final class Config {
 
     static final Choice TILE_STYLE = new Choice("tile_style", "App tile style", "original",
             new String[] {"original", "afterglow"}, new String[] {"Original", "Afterglow"});
-    static final Choice[] CHOICES = {ACCENT, TILES, LAYOUT, ORDER, LABELS, CLOCK, MEMORY, INPUTS, SWITCH, BACKGROUND, DIM, ROTATE, LOCK, TILE_STYLE};
+    /**
+     * Today's weather beside the clock, from the tv.dumbtv.weather helper. Shows only once
+     * weather.lat and weather.lon are set in home.conf; see {@link Weather}.
+     */
+    static final Choice WEATHER = new Choice("weather", "Weather", "on",
+            new String[] {"on", "off"},
+            new String[] {"Shown", "Hidden"});
+    /** A quote under the clock from quotes.txt, changed this often; see {@link Quotes}. */
+    static final Choice QUOTES = new Choice("quotes", "Quotes", "4h",
+            new String[] {"off", "hourly", "4h", "daily"},
+            new String[] {"Hidden", "Every hour", "Every 4 hours", "Every day"});
+    /** Days to Christmas under the date, from November 1 to Christmas Day; see {@link Countdown}. */
+    static final Choice COUNTDOWN = new Choice("countdown", "Christmas countdown", "on",
+            new String[] {"on", "off"},
+            new String[] {"Shown", "Hidden"});
+    /** From this hour until 6 AM the background is dimmed and the fire burns low. */
+    static final Choice NIGHT = new Choice("night", "Night mode", "22",
+            new String[] {"off", "20", "21", "22", "23"},
+            new String[] {"Off", "From 8 PM", "From 9 PM", "From 10 PM", "From 11 PM"});
+    static final Choice[] CHOICES = {ACCENT, TILES, LAYOUT, ORDER, LABELS, CLOCK, WEATHER, QUOTES, COUNTDOWN, NIGHT, MEMORY, INPUTS, SWITCH, BACKGROUND, DIM, ROTATE, LOCK, TILE_STYLE};
 
     /** Folder of wallpapers, next to home.conf, that Background › Image file rotates through. */
     static final String WALLPAPERS = "wallpapers";
@@ -114,7 +134,16 @@ final class Config {
     private static final int[] ACCENTS = {
         0xFFFFFFFF, 0xFF3D8BFF, 0xFF2BC4E8, 0xFF34C759, 0xFFFFB340, 0xFFFF5147, 0xFFFF5C9D, 0xFFA07CFF,
     };
-    private static final int[] BACKGROUNDS = {0xFF000000, 0xFF141518, 0xFF0B1220, 0xFF000000, 0xFF141518, 0xFF141518};
+    private static final int[] BACKGROUNDS = {0xFF000000, 0xFF141518, 0xFF0B1220, 0xFF000000, 0xFF141518, 0xFF141518, 0xFF140C0A, 0xFF000000};
+    /** Background › Video file plays this, muted and looping, from the app's folder. */
+    static final String VIDEO = "background.mp4";
+
+    /** Whether night mode covers {@code hour} (0-23): from the chosen hour until 6 AM. */
+    boolean night(int hour) {
+        String v = get(NIGHT);
+        if ("off".equals(v)) return false;
+        return hour >= Integer.parseInt(v) || hour < 6;
+    }
 
     private static Config instance;
 
@@ -376,6 +405,17 @@ final class Config {
                 out.add(f);
             }
         }
+    }
+
+    /** A file the owner put next to home.conf (or in the media folder), or null. */
+    File own(String name) {
+        File f = new File(dir, name);
+        if (f.isFile()) return f;
+        if (shared != null) {
+            File s = new File(shared, name);
+            if (s.isFile()) return s;
+        }
+        return null;
     }
 
     File wallpaper() {
