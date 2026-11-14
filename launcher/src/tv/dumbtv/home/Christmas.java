@@ -434,11 +434,11 @@ final class Christmas extends View {
         c.drawOval(rect, paint);
     }
 
-    /** Hung in the gap between the weather and the Options button. */
+    /** Hung in the gap between the weather and the Search button. */
     private void ornaments(Canvas c, int w, int h, int t) {
-        float[] xs = {0.525f, 0.585f, 0.645f, 0.70f};
-        float[] drop = {0.11f, 0.17f, 0.09f, 0.14f};
-        float[] size = {0.038f, 0.032f, 0.042f, 0.034f};
+        float[] xs = {0.548f, 0.587f, 0.626f};
+        float[] drop = {0.11f, 0.16f, 0.09f};
+        float[] size = {0.034f, 0.029f, 0.036f};
         for (int i = 0; i < xs.length; i++) {
             float x = w * xs[i], r = h * size[i], cy = t + h * drop[i];
             int base = ORNAMENTS[i % ORNAMENTS.length];

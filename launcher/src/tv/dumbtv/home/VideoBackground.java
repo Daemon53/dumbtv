@@ -23,6 +23,7 @@ final class VideoBackground extends SurfaceView implements SurfaceHolder.Callbac
     private File file, broken;
     private boolean wanted, surface;
     private Runnable failed;
+    private int retries;
 
     VideoBackground(Context c) {
         super(c);
@@ -35,6 +36,7 @@ final class VideoBackground extends SurfaceView implements SurfaceHolder.Callbac
         stop();
         file = f;
         wanted = true;
+        retries = 0;
         setVisibility(View.VISIBLE);
         if (surface) open();
     }
@@ -54,9 +56,17 @@ final class VideoBackground extends SurfaceView implements SurfaceHolder.Callbac
      * wrong hides the video; it never takes the home screen down with it.
      */
     private void open() {
+        if (!wanted || player != null || !surface) return;
         MediaPlayer p = new MediaPlayer();
         try (FileInputStream in = new FileInputStream(file)) {
             p.setDataSource(in.getFD());
+        } catch (IOException | RuntimeException e) {
+            // The file itself cannot be read: that will not fix itself.
+            p.release();
+            fail(e.toString());
+            return;
+        }
+        try {
             p.setDisplay(getHolder());
             p.setLooping(true);
             p.setVolume(0f, 0f);
@@ -67,9 +77,13 @@ final class VideoBackground extends SurfaceView implements SurfaceHolder.Callbac
             });
             p.prepareAsync();
             player = p;
-        } catch (IOException | RuntimeException e) {
+        } catch (RuntimeException e) {
+            // Usually the surface or the decoder was still being handed back from the last
+            // play: try again shortly rather than giving up on the video.
+            Log.w("dumbtv", "video background, retrying", e);
             p.release();
-            fail(e.toString());
+            if (++retries <= 3) postDelayed(this::open, 1000);
+            else fail(e.toString());
         }
     }
 

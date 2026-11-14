@@ -19,8 +19,22 @@ final class Weather {
     /** Active National Weather Service alerts, most severe first; empty when there are none. */
     final String[] alertEvent, alertSeverity, alertHeadline;
     final long[] alertEnds;
+    /** The coming days, today first: "yyyy-MM-dd", high, low, WMO code, chance of rain in % (-1 unknown). */
+    final String[] dayTime;
+    final double[] dayHi, dayLo;
+    final int[] dayCode, dayRain;
 
     private Weather(Bundle b) {
+        String[] t = b.getStringArray("dayTime");
+        double[] h = b.getDoubleArray("dayHi"), l = b.getDoubleArray("dayLo");
+        int[] c = b.getIntArray("dayCode"), r = b.getIntArray("dayRain");
+        boolean days = t != null && h != null && l != null && c != null && r != null
+                && h.length == t.length && l.length == t.length && c.length == t.length && r.length == t.length;
+        dayTime = days ? t : new String[0];
+        dayHi = days ? h : new double[0];
+        dayLo = days ? l : new double[0];
+        dayCode = days ? c : new int[0];
+        dayRain = days ? r : new int[0];
         now = b.getDouble("now", Double.NaN);
         hi = b.getDouble("hi", Double.NaN);
         lo = b.getDouble("lo", Double.NaN);

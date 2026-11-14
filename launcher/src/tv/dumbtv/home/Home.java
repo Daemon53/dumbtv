@@ -622,6 +622,10 @@ public final class Home extends Activity {
         beside.leftMargin = dp(56);
         head.addView(buildWeather(), beside);
         head.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1f));
+        TextView search = chip("Search", v -> startActivity(new Intent(this, Search.class)));
+        search.setId(View.generateViewId());
+        weather.setNextFocusRightId(search.getId());
+        head.addView(search);
         head.addView(chip("Options", v -> startActivity(new Intent(this, Options.class))));
         head.addView(chip("Settings", v -> openSettings()));
         column.addView(head, new LinearLayout.LayoutParams(MATCH, WRAP));
@@ -723,6 +727,11 @@ public final class Home extends Activity {
             Ui.focusStyle(c, accent, 0x14FFFFFF, dp(18));
             c.setVisibility(locked() ? View.GONE : View.VISIBLE);
         }
+        // The weather keeps its text colours; focus shows as a soft accent panel behind it.
+        android.graphics.drawable.StateListDrawable panel = new android.graphics.drawable.StateListDrawable();
+        panel.addState(new int[] {android.R.attr.state_focused}, Ui.round((accent & 0x00FFFFFF) | 0x40000000, dp(14)));
+        panel.addState(new int[0], Ui.round(0x00000000, dp(14)));
+        weather.setBackground(panel);
         meter.setVisibility("on".equals(cfg.get(Config.MEMORY)) ? View.VISIBLE : View.GONE);
         meter.setAccent(accent);
         render(apps);
@@ -1053,6 +1062,15 @@ public final class Home extends Activity {
         weather = new LinearLayout(this);
         weather.setOrientation(LinearLayout.HORIZONTAL);
         weather.setVisibility(View.GONE);
+        // Selecting the weather opens the 10-day forecast.
+        weather.setFocusable(true);
+        weather.setClickable(true);
+        weather.setPadding(dp(12), dp(4), dp(12), dp(4));
+        weather.setOnClickListener(v -> startActivity(new Intent(this, Forecast.class)));
+        weather.setOnFocusChangeListener((v, has) -> {
+            v.animate().scaleX(has ? 1.04f : 1f).scaleY(has ? 1.04f : 1f).setDuration(110).start();
+            if (has) focusBackground(null);
+        });
         weatherNow = Ui.text(this, 52, Ui.TEXT, Ui.LIGHT);
         weather.addView(weatherNow);
         LinearLayout lines = new LinearLayout(this);

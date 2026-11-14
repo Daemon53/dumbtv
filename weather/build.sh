@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Builds weather/build/dumbtv-weather.apk, the forecast helper dumbtv home reads, with the same
+# Builds weather/build/dumbtv-weather.apk, the forecast and title-search helper dumbtv home reads, with the same
 # bare SDK tools as launcher/build.sh and the same signing key (build the launcher first).
 # Needs a JDK 17 and an Android SDK with platforms;android-25 and any build-tools.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-VERSION_CODE=2
-VERSION_NAME=0.2
+VERSION_CODE=4
+VERSION_NAME=0.4
 MIN_SDK=25
 
 SDK=${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}

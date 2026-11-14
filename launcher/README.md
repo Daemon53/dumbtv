@@ -158,6 +158,14 @@ on Background › Christmas the fire burns low.
 **Background › Video file** plays `background.mp4` from the app's folder, muted and
 looping; Image dim darkens it. The player is released whenever an app opens.
 
+**10-day forecast**: select the weather on the home screen.
+
+**Search** (the Search button): type a movie or show title; each result says which US services
+stream it, with your installed apps first, and selecting it opens that app (Netflix and YouTube
+straight into their own search). Titles come from TMDB and where-to-watch data from JustWatch via
+TMDB, looked up by the weather helper. TMDB needs a free personal API key from your own account
+(themoviedb.org › Settings › API); the search screen asks for it once and the helper keeps it.
+
 ## Screensaver
 
 dumbtv home includes a screensaver to use in place of Amazon's: the home screen's
